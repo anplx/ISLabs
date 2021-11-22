@@ -2,6 +2,7 @@
 require 'sinatra'
 require 'securerandom'
 require './auth.rb'
+require 'rmagick'
 
 enable :sessions
 set :port, 3001
@@ -16,21 +17,27 @@ post "/save_image" do
   file = params[:my_file][:tempfile]
   temp_name = file.path
   input_name = params[:my_file][:filename]
-
   output_name = SecureRandom.uuid + File.extname(input_name)
 
-  size = `identify -format "%[fx:w]x%[fx:h]" #{temp_name}`
+  cartinka=Magick::ImageList.new(temp_name)
+  text1=Magick::Draw.new
+  text1.gravity=Magick::NorthGravity
+  text1.font_family="Impact"
+  text1.pointsize=50
+  text1.stroke="none"
+  text1.fill='white'
+  text1.annotate(cartinka, 0, 0, 0, 40, "#{params[:top_text]}")
+  text2=Magick::Draw.new
+  text2.gravity=Magick::SouthGravity
+  text2.font_family="Impact"
+  text2.pointsize=50
+  text2.stroke="none"
+  text2.fill='white'
+  text2.annotate(cartinka, 0, 0, 0, 40, "#{params[:bottom_text]}")
 
-  `convert '#{temp_name}' \
-  -set comment "{\\"top\\": \\"#{params[:top_text]}\\", \\"bot\\": \\"#{params[:bottom_text]}\\"}" \
-  -gravity North \
-   \\( -size #{size} xc:none -font Impact -pointsize 50 -stroke black -strokewidth 7 -annotate 0 '#{params[:top_text]}' -blur 0x1 \\) -composite \
-   -size #{size} -font Impact -fill white -pointsize 50 -stroke none -annotate 0 '#{params[:top_text]}' \
-   -gravity South \
-   \\( -size #{size} xc:none -font Impact -pointsize 50 -stroke black -strokewidth 7 -annotate 0 '#{params[:bottom_text]}' -blur 0x1 \\) \
-   -size #{size} -font Impact -fill white -pointsize 50 -stroke none -annotate 0 '#{params[:bottom_text]}' -composite \
-   'public/uploads/#{output_name}'
-  `
+  cartinka.cur_image["Comment"]="{\"top\": \"#{params[:top_text]}\", \"bot\": \"#{params[:bottom_text]}\"}"
+  
+  cartinka.write("public/uploads/#{output_name}")
 
   if current_user
     @filename = output_name
